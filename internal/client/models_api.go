@@ -118,3 +118,17 @@ type DNSSECRecord struct {
 	PublicKey        string `json:"publicKey,omitempty"`
 	MaxSignatureLife int64  `json:"maxSignatureLife,omitempty"`
 }
+
+type DomainForwarding struct {
+	FQDN string       `json:"fqdn,omitempty"`
+	Type string       `json:"type,omitempty"`
+	URL  string       `json:"url,omitempty"`
+	Mask *ForwardMask `json:"mask,omitempty"`
+	Subs []string     `json:"subs,omitempty"`
+}
+
+type ForwardMask struct {
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+	Keywords    string `json:"keywords,omitempty"`
+}

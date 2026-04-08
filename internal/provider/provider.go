@@ -80,6 +80,8 @@ func (p *godaddyProvider) DataSources(_ context.Context) []func() datasource.Dat
 		NewDomainsDataSource,
 		NewDNSRecordSetDataSource,
 		NewDomainAgreementsDataSource,
+		NewDomainActionsDataSource,
+		NewDomainForwardingDataSource,
 		NewShopperDataSource,
 	}
 }
@@ -90,6 +92,8 @@ func (p *godaddyProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewDomainSettingsResource,
 		NewDomainNameserversResource,
 		NewDomainContactsResource,
+		NewDomainForwardingResource,
+		NewDomainDNSSECRecordsResource,
 	}
 }
 

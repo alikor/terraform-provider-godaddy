@@ -96,3 +96,7 @@ func ResolveBaseURL(endpoint, override string) string {
 
 	return "https://api.godaddy.com"
 }
+
+func (c *Client) Config() Config {
+	return c.config
+}

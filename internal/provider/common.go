@@ -66,6 +66,48 @@ var contactAttrTypes = map[string]attr.Type{
 	"address_mailing": types.ObjectType{AttrTypes: mailingAddressAttrTypes},
 }
 
+var forwardMaskAttrTypes = map[string]attr.Type{
+	"title":       types.StringType,
+	"description": types.StringType,
+	"keywords":    types.StringType,
+}
+
+var forwardingAttrTypes = map[string]attr.Type{
+	"fqdn": types.StringType,
+	"type": types.StringType,
+	"url":  types.StringType,
+	"mask": types.ObjectType{AttrTypes: forwardMaskAttrTypes},
+	"subs": types.ListType{ElemType: types.StringType},
+}
+
+var dnssecAttrTypes = map[string]attr.Type{
+	"key_tag":            types.Int64Type,
+	"algorithm":          types.StringType,
+	"digest_type":        types.StringType,
+	"digest":             types.StringType,
+	"flags":              types.StringType,
+	"public_key":         types.StringType,
+	"max_signature_life": types.Int64Type,
+}
+
+var actionReasonAttrTypes = map[string]attr.Type{
+	"code":    types.StringType,
+	"message": types.StringType,
+	"fields":  types.ListType{ElemType: types.StringType},
+}
+
+var actionAttrTypes = map[string]attr.Type{
+	"type":         types.StringType,
+	"origination":  types.StringType,
+	"created_at":   types.StringType,
+	"started_at":   types.StringType,
+	"completed_at": types.StringType,
+	"modified_at":  types.StringType,
+	"status":       types.StringType,
+	"request_id":   types.StringType,
+	"reason":       types.ObjectType{AttrTypes: actionReasonAttrTypes},
+}
+
 func parseDomain(domain string) (string, error) {
 	return normalize.Domain(domain)
 }
@@ -375,4 +417,142 @@ func contactFromObject(ctx context.Context, obj types.Object) (client.Contact, e
 		Fax:            model.Fax.ValueString(),
 		AddressMailing: address,
 	}), nil
+}
+
+func forwardMaskObjectFromAPI(value *client.ForwardMask) types.Object {
+	if value == nil {
+		return objectNull(forwardMaskAttrTypes)
+	}
+
+	return types.ObjectValueMust(forwardMaskAttrTypes, map[string]attr.Value{
+		"title":       stringOrNull(value.Title),
+		"description": stringOrNull(value.Description),
+		"keywords":    stringOrNull(value.Keywords),
+	})
+}
+
+func forwardMaskFromObject(ctx context.Context, obj types.Object) (*client.ForwardMask, error) {
+	if obj.IsNull() || obj.IsUnknown() {
+		return nil, nil
+	}
+
+	var model forwardMaskModel
+	diags := obj.As(ctx, &model, basetypes.ObjectAsOptions{})
+	if diags.HasError() {
+		return nil, fmt.Errorf("unable to decode mask: %s", diags.Errors()[0].Summary())
+	}
+
+	return &client.ForwardMask{
+		Title:       model.Title.ValueString(),
+		Description: model.Description.ValueString(),
+		Keywords:    model.Keywords.ValueString(),
+	}, nil
+}
+
+func forwardingObjectFromAPI(value *client.DomainForwarding) types.Object {
+	if value == nil {
+		return objectNull(forwardingAttrTypes)
+	}
+
+	return types.ObjectValueMust(forwardingAttrTypes, map[string]attr.Value{
+		"fqdn": stringOrNull(value.FQDN),
+		"type": stringOrNull(value.Type),
+		"url":  stringOrNull(value.URL),
+		"mask": forwardMaskObjectFromAPI(value.Mask),
+		"subs": toStringList(value.Subs),
+	})
+}
+
+func dnssecRecordsFromList(ctx context.Context, list types.List) ([]client.DNSSECRecord, error) {
+	if list.IsNull() || list.IsUnknown() {
+		return nil, nil
+	}
+
+	type dnssecRecordModel struct {
+		KeyTag           types.Int64  `tfsdk:"key_tag"`
+		Algorithm        types.String `tfsdk:"algorithm"`
+		DigestType       types.String `tfsdk:"digest_type"`
+		Digest           types.String `tfsdk:"digest"`
+		Flags            types.String `tfsdk:"flags"`
+		PublicKey        types.String `tfsdk:"public_key"`
+		MaxSignatureLife types.Int64  `tfsdk:"max_signature_life"`
+	}
+
+	var models []dnssecRecordModel
+	diags := list.ElementsAs(ctx, &models, false)
+	if diags.HasError() {
+		return nil, fmt.Errorf("unable to decode DNSSEC records: %s", diags.Errors()[0].Summary())
+	}
+
+	records := make([]client.DNSSECRecord, 0, len(models))
+	for _, model := range models {
+		records = append(records, client.DNSSECRecord{
+			KeyTag:           model.KeyTag.ValueInt64(),
+			Algorithm:        model.Algorithm.ValueString(),
+			DigestType:       model.DigestType.ValueString(),
+			Digest:           model.Digest.ValueString(),
+			Flags:            model.Flags.ValueString(),
+			PublicKey:        model.PublicKey.ValueString(),
+			MaxSignatureLife: model.MaxSignatureLife.ValueInt64(),
+		})
+	}
+
+	return normalize.SortDNSSECRecords(records), nil
+}
+
+func dnssecRecordsToList(records []client.DNSSECRecord) types.List {
+	if len(records) == 0 {
+		return types.ListNull(types.ObjectType{AttrTypes: dnssecAttrTypes})
+	}
+
+	elements := make([]attr.Value, 0, len(records))
+	for _, record := range normalize.SortDNSSECRecords(records) {
+		elements = append(elements, types.ObjectValueMust(dnssecAttrTypes, map[string]attr.Value{
+			"key_tag":            types.Int64Value(record.KeyTag),
+			"algorithm":          stringOrNull(record.Algorithm),
+			"digest_type":        stringOrNull(record.DigestType),
+			"digest":             stringOrNull(record.Digest),
+			"flags":              stringOrNull(record.Flags),
+			"public_key":         stringOrNull(record.PublicKey),
+			"max_signature_life": types.Int64Value(record.MaxSignatureLife),
+		}))
+	}
+
+	return types.ListValueMust(types.ObjectType{AttrTypes: dnssecAttrTypes}, elements)
+}
+
+func actionsToList(actions []client.DomainAction) types.List {
+	if len(actions) == 0 {
+		return types.ListNull(types.ObjectType{AttrTypes: actionAttrTypes})
+	}
+
+	elements := make([]attr.Value, 0, len(actions))
+	for _, action := range actions {
+		reason := objectNull(actionReasonAttrTypes)
+		if action.Reason != nil {
+			fields := make([]string, 0, len(action.Reason.Fields))
+			for _, field := range action.Reason.Fields {
+				fields = append(fields, field.Path+": "+field.Message)
+			}
+			reason = types.ObjectValueMust(actionReasonAttrTypes, map[string]attr.Value{
+				"code":    stringOrNull(action.Reason.Code),
+				"message": stringOrNull(action.Reason.Message),
+				"fields":  toStringList(fields),
+			})
+		}
+
+		elements = append(elements, types.ObjectValueMust(actionAttrTypes, map[string]attr.Value{
+			"type":         stringOrNull(action.Type),
+			"origination":  stringOrNull(action.Origination),
+			"created_at":   stringOrNull(action.CreatedAt),
+			"started_at":   stringOrNull(action.StartedAt),
+			"completed_at": stringOrNull(action.CompletedAt),
+			"modified_at":  stringOrNull(action.ModifiedAt),
+			"status":       stringOrNull(action.Status),
+			"request_id":   stringOrNull(action.RequestID),
+			"reason":       reason,
+		}))
+	}
+
+	return types.ListValueMust(types.ObjectType{AttrTypes: actionAttrTypes}, elements)
 }

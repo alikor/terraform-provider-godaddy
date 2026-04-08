@@ -139,3 +139,37 @@ type shopperDataSourceModel struct {
 	NameLast          types.String `tfsdk:"name_last"`
 	Email             types.String `tfsdk:"email"`
 }
+
+type domainActionsDataSourceModel struct {
+	Domain  types.String `tfsdk:"domain"`
+	Actions types.List   `tfsdk:"actions"`
+}
+
+type forwardingDataSourceModel struct {
+	FQDN        types.String `tfsdk:"fqdn"`
+	IncludeSubs types.Bool   `tfsdk:"include_subs"`
+	Type        types.String `tfsdk:"type"`
+	URL         types.String `tfsdk:"url"`
+	Mask        types.Object `tfsdk:"mask"`
+	Subs        types.List   `tfsdk:"subs"`
+}
+
+type forwardingResourceModel struct {
+	ID   types.String `tfsdk:"id"`
+	FQDN types.String `tfsdk:"fqdn"`
+	Type types.String `tfsdk:"type"`
+	URL  types.String `tfsdk:"url"`
+	Mask types.Object `tfsdk:"mask"`
+}
+
+type dnssecResourceModel struct {
+	ID      types.String `tfsdk:"id"`
+	Domain  types.String `tfsdk:"domain"`
+	Records types.List   `tfsdk:"records"`
+}
+
+type forwardMaskModel struct {
+	Title       types.String `tfsdk:"title"`
+	Description types.String `tfsdk:"description"`
+	Keywords    types.String `tfsdk:"keywords"`
+}
