@@ -29,7 +29,7 @@ func (d *domainForwardingDataSource) Schema(_ context.Context, _ datasource.Sche
 		MarkdownDescription: "Read GoDaddy URL forwarding for one FQDN.",
 		Attributes: map[string]datasourceschema.Attribute{
 			"fqdn":         datasourceschema.StringAttribute{Required: true, MarkdownDescription: "Forwarded FQDN."},
-			"include_subs": datasourceschema.BoolAttribute{Optional: true, MarkdownDescription: "Reserved for later support."},
+			"include_subs": datasourceschema.BoolAttribute{Optional: true, MarkdownDescription: "Whether to request forwarded subdomain coverage from GoDaddy."},
 			"type":         datasourceschema.StringAttribute{Computed: true, MarkdownDescription: "Forward type."},
 			"url":          datasourceschema.StringAttribute{Computed: true, MarkdownDescription: "Destination URL."},
 			"subs":         datasourceschema.ListAttribute{Computed: true, ElementType: types.StringType, MarkdownDescription: "Forwarded subdomains, if returned by the API."},
@@ -77,7 +77,7 @@ func (d *domainForwardingDataSource) Read(ctx context.Context, req datasource.Re
 		return
 	}
 
-	forwarding, err := d.client.GetDomainForwarding(ctx, customerID, fqdn)
+	forwarding, err := d.client.GetDomainForwarding(ctx, customerID, fqdn, data.IncludeSubs.ValueBool())
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to read domain forwarding", err.Error())
 		return

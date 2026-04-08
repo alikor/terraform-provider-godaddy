@@ -1,10 +1,13 @@
 GO ?= go
 TERRAFORM ?= terraform
 DOCKER ?= docker
-VERSION ?= dev
+VERSION ?= $(shell ./tools/version.sh)
 DIST_DIR ?= dist/docker
 
-.PHONY: build test testacc testterratest teste2e lint fmt docs install docker-fmt docker-test docker-build docker-artifact docker-smoke docker-ci
+.PHONY: build test testacc testterratest teste2e lint fmt docs install version docker-fmt docker-test docker-build docker-artifact docker-smoke docker-ci
+
+version:
+	@printf '%s\n' "$(VERSION)"
 
 build:
 	$(GO) build -ldflags="-X main.version=$(VERSION)" ./...

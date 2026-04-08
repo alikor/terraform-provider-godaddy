@@ -70,3 +70,45 @@ func TestGetDomainV2IncludesAndPartial(t *testing.T) {
 		t.Fatalf("DNSSECRecords = %#v, want key_tag 123", got.DNSSECRecords)
 	}
 }
+
+func TestGetDomainForwardingIncludeSubs(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v2/customers/customer-123/domains/forwards/blog.example.com" {
+			t.Fatalf("unexpected path %q", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("includeSubs"); got != "true" {
+			t.Fatalf("includeSubs = %q, want true", got)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(DomainForwarding{
+			FQDN: "blog.example.com",
+			Type: "REDIRECT_PERMANENT",
+			URL:  "https://www.example.com/blog",
+			Subs: []string{"www", "shop"},
+		}); err != nil {
+			t.Fatalf("unable to encode response: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	c := New(Config{
+		APIKey:         "key",
+		APISecret:      "secret",
+		BaseURL:        server.URL,
+		RequestTimeout: time.Second,
+		PollInterval:   10 * time.Millisecond,
+		MaxRetries:     0,
+		RateLimitRPM:   60,
+	})
+
+	got, err := c.GetDomainForwarding(context.Background(), "customer-123", "blog.example.com", true)
+	if err != nil {
+		t.Fatalf("GetDomainForwarding() returned error: %v", err)
+	}
+	if len(got.Subs) != 2 || got.Subs[0] != "www" || got.Subs[1] != "shop" {
+		t.Fatalf("Subs = %#v, want [www shop]", got.Subs)
+	}
+}

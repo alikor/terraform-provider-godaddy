@@ -25,9 +25,14 @@ func (c *Client) GetDomainV2(ctx context.Context, customerID, domain string, inc
 	return &out, statusCode == http.StatusNonAuthoritativeInfo, nil
 }
 
-func (c *Client) GetDomainForwarding(ctx context.Context, customerID, fqdn string) (*DomainForwarding, error) {
+func (c *Client) GetDomainForwarding(ctx context.Context, customerID, fqdn string, includeSubs bool) (*DomainForwarding, error) {
+	query := url.Values{}
+	if includeSubs {
+		query.Set("includeSubs", "true")
+	}
+
 	var out DomainForwarding
-	statusCode, err := c.do(ctx, http.MethodGet, fmt.Sprintf("/v2/customers/%s/domains/forwards/%s", customerID, fqdn), nil, &out, requestOptions{
+	statusCode, err := c.do(ctx, http.MethodGet, buildURL(fmt.Sprintf("/v2/customers/%s/domains/forwards/%s", customerID, fqdn), query), nil, &out, requestOptions{
 		PathTemplate:    "/v2/customers/{customerId}/domains/forwards/{fqdn}",
 		AllowStatusCode: []int{http.StatusNotFound},
 	})

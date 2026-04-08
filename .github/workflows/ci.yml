@@ -27,8 +27,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Compute build version
+        id: version
+        run: echo "value=$(./tools/version.sh)" >> "$GITHUB_OUTPUT"
+
       - name: Docker CI targets
-        run: make docker-ci VERSION=${GITHUB_SHA}
+        run: make docker-ci VERSION=${{ steps.version.outputs.value }}
 
   terraform-smoke:
     needs: build-and-test
@@ -47,6 +51,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Compute build version
+        id: version
+        run: echo "value=$(./tools/version.sh)" >> "$GITHUB_OUTPUT"
+
       - name: Check smoke test secrets
         id: smoke-secrets
         shell: bash
@@ -59,7 +67,7 @@ jobs:
 
       - name: Run Terraform smoke tests
         if: steps.smoke-secrets.outputs.run_smoke == 'true'
-        run: make docker-smoke
+        run: make docker-smoke VERSION=${{ steps.version.outputs.value }}
 
       - name: Skip Terraform smoke tests
         if: steps.smoke-secrets.outputs.run_smoke != 'true'

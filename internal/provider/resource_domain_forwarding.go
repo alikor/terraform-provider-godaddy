@@ -90,7 +90,7 @@ func (r *domainForwardingResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
-	existing, err := r.client.GetDomainForwarding(ctx, customerID, fqdn)
+	existing, err := r.client.GetDomainForwarding(ctx, customerID, fqdn, false)
 	if err == nil && existing != nil {
 		resp.Diagnostics.AddError("Domain forwarding already exists", "Import the existing forwarding instead of creating it.")
 		return
@@ -127,7 +127,7 @@ func (r *domainForwardingResource) Read(ctx context.Context, req resource.ReadRe
 		resp.Diagnostics.AddError("Unable to resolve customer_id", err.Error())
 		return
 	}
-	existing, err := r.client.GetDomainForwarding(ctx, customerID, fqdn)
+	existing, err := r.client.GetDomainForwarding(ctx, customerID, fqdn, false)
 	if err != nil {
 		var apiErr *client.APIError
 		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
@@ -212,7 +212,7 @@ func (r *domainForwardingResource) expand(ctx context.Context, data forwardingRe
 }
 
 func (r *domainForwardingResource) refresh(ctx context.Context, fqdn, customerID string, data *forwardingResourceModel, diags *diag.Diagnostics) {
-	existing, err := r.client.GetDomainForwarding(ctx, customerID, fqdn)
+	existing, err := r.client.GetDomainForwarding(ctx, customerID, fqdn, false)
 	if err != nil {
 		diags.AddError("Unable to refresh forwarding", err.Error())
 		return
