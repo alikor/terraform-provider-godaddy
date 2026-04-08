@@ -66,6 +66,13 @@ var contactAttrTypes = map[string]attr.Type{
 	"address_mailing": types.ObjectType{AttrTypes: mailingAddressAttrTypes},
 }
 
+var domainContactsAttrTypes = map[string]attr.Type{
+	"registrant": types.ObjectType{AttrTypes: contactAttrTypes},
+	"admin":      types.ObjectType{AttrTypes: contactAttrTypes},
+	"tech":       types.ObjectType{AttrTypes: contactAttrTypes},
+	"billing":    types.ObjectType{AttrTypes: contactAttrTypes},
+}
+
 var forwardMaskAttrTypes = map[string]attr.Type{
 	"title":       types.StringType,
 	"description": types.StringType,
@@ -387,6 +394,20 @@ func contactObjectFromAPI(value client.Contact) types.Object {
 		"phone":           stringOrNull(value.Phone),
 		"fax":             stringOrNull(value.Fax),
 		"address_mailing": mailingAddressObjectFromAPI(value.AddressMailing),
+	})
+}
+
+func domainContactsObjectFromAPI(value *client.DomainContacts) types.Object {
+	if value == nil {
+		return objectNull(domainContactsAttrTypes)
+	}
+
+	normalized := normalizedDomainContacts(*value)
+	return types.ObjectValueMust(domainContactsAttrTypes, map[string]attr.Value{
+		"registrant": contactObjectFromAPI(normalized.Registrant),
+		"admin":      contactObjectFromAPI(normalized.Admin),
+		"tech":       contactObjectFromAPI(normalized.Tech),
+		"billing":    contactObjectFromAPI(normalized.Billing),
 	})
 }
 

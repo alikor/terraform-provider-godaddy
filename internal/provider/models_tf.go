@@ -26,9 +26,12 @@ type domainDataSourceModel struct {
 	ExpirationProtected          types.Bool   `tfsdk:"expiration_protected"`
 	HoldRegistrar                types.Bool   `tfsdk:"hold_registrar"`
 	NameServers                  types.List   `tfsdk:"name_servers"`
+	Contacts                     types.Object `tfsdk:"contacts"`
 	ExposeRegistrantOrganization types.Bool   `tfsdk:"expose_registrant_organization"`
 	ExposeWhois                  types.Bool   `tfsdk:"expose_whois"`
 	AuthCode                     types.String `tfsdk:"auth_code"`
+	Actions                      types.List   `tfsdk:"actions"`
+	DNSSECRecords                types.List   `tfsdk:"dnssec_records"`
 	RegistryStatusCodes          types.List   `tfsdk:"registry_status_codes"`
 	Partial                      types.Bool   `tfsdk:"partial"`
 }
