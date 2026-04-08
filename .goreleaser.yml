@@ -1,0 +1,23 @@
+version: 2
+
+project_name: terraform-provider-godaddy
+
+builds:
+  - id: provider
+    main: .
+    binary: terraform-provider-godaddy
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats: [zip]
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
