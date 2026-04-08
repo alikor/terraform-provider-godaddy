@@ -27,30 +27,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
+      - name: Docker format check
+        run: DOCKER_BUILDKIT=1 docker build --target fmt-check .
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3.1.0
-        with:
-          terraform_version: 1.5.7
+      - name: Docker test
+        run: DOCKER_BUILDKIT=1 docker build --target test .
 
-      - name: Verify formatting
-        run: |
-          unformatted="$(gofmt -l .)"
-          if [ -n "$unformatted" ]; then
-            echo "$unformatted"
-            exit 1
-          fi
-
-      - name: Run unit and integration tests
-        run: go test ./...
-
-      - name: Build provider
-        run: go build ./...
+      - name: Docker build
+        run: DOCKER_BUILDKIT=1 docker build --target build --build-arg VERSION=${GITHUB_SHA} .
 
   terraform-smoke:
     needs: build-and-test
@@ -69,17 +53,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3.1.0
-        with:
-          terraform_version: 1.5.7
-
       - name: Check smoke test secrets
         id: smoke-secrets
         shell: bash
@@ -92,7 +65,14 @@ jobs:
 
       - name: Run Terraform smoke tests
         if: steps.smoke-secrets.outputs.run_smoke == 'true'
-        run: go test ./test/terratest/... -v -count=1
+        run: |
+          DOCKER_BUILDKIT=1 docker build \
+            --target terratest-smoke \
+            --build-arg GODADDY_ENDPOINT="${GODADDY_ENDPOINT}" \
+            --secret id=godaddy_api_key,env=GODADDY_API_KEY \
+            --secret id=godaddy_api_secret,env=GODADDY_API_SECRET \
+            --secret id=godaddy_test_domain,env=GODADDY_TEST_DOMAIN \
+            .
 
       - name: Skip Terraform smoke tests
         if: steps.smoke-secrets.outputs.run_smoke != 'true'

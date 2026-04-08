@@ -1,0 +1,16 @@
+.git
+.github
+.DS_Store
+.env
+.env.*
+!.env.example
+.terraform
+**/.terraform
+*.tfstate
+*.tfstate.*
+bin
+dist
+coverage
+coverage.out
+*.prof
+terraform-provider-godaddy
