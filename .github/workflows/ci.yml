@@ -27,14 +27,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Docker format check
-        run: DOCKER_BUILDKIT=1 docker build --target fmt-check .
-
-      - name: Docker test
-        run: DOCKER_BUILDKIT=1 docker build --target test .
-
-      - name: Docker build
-        run: DOCKER_BUILDKIT=1 docker build --target build --build-arg VERSION=${GITHUB_SHA} .
+      - name: Docker CI targets
+        run: make docker-ci VERSION=${GITHUB_SHA}
 
   terraform-smoke:
     needs: build-and-test
@@ -65,14 +59,7 @@ jobs:
 
       - name: Run Terraform smoke tests
         if: steps.smoke-secrets.outputs.run_smoke == 'true'
-        run: |
-          DOCKER_BUILDKIT=1 docker build \
-            --target terratest-smoke \
-            --build-arg GODADDY_ENDPOINT="${GODADDY_ENDPOINT}" \
-            --secret id=godaddy_api_key,env=GODADDY_API_KEY \
-            --secret id=godaddy_api_secret,env=GODADDY_API_SECRET \
-            --secret id=godaddy_test_domain,env=GODADDY_TEST_DOMAIN \
-            .
+        run: make docker-smoke
 
       - name: Skip Terraform smoke tests
         if: steps.smoke-secrets.outputs.run_smoke != 'true'

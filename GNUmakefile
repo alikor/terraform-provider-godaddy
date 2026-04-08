@@ -2,8 +2,9 @@ GO ?= go
 TERRAFORM ?= terraform
 DOCKER ?= docker
 VERSION ?= dev
+DIST_DIR ?= dist/docker
 
-.PHONY: build test testacc testterratest teste2e lint fmt docs install docker-fmt docker-test docker-build docker-smoke docker-ci
+.PHONY: build test testacc testterratest teste2e lint fmt docs install docker-fmt docker-test docker-build docker-artifact docker-smoke docker-ci
 
 build:
 	$(GO) build -ldflags="-X main.version=$(VERSION)" ./...
@@ -40,10 +41,21 @@ docker-test:
 docker-build:
 	DOCKER_BUILDKIT=1 $(DOCKER) build --target build --build-arg VERSION=$(VERSION) .
 
+docker-artifact:
+	rm -rf $(DIST_DIR)
+	mkdir -p $(DIST_DIR)
+	DOCKER_BUILDKIT=1 $(DOCKER) build --target artifact --build-arg VERSION=$(VERSION) --output type=local,dest=$(DIST_DIR) .
+
 docker-smoke:
+	@set -a; \
+	if [ -f .env ]; then . ./.env; fi; \
+	set +a; \
+	: "$${GODADDY_API_KEY:?GODADDY_API_KEY must be set}"; \
+	: "$${GODADDY_API_SECRET:?GODADDY_API_SECRET must be set}"; \
+	: "$${GODADDY_TEST_DOMAIN:?GODADDY_TEST_DOMAIN must be set}"; \
 	DOCKER_BUILDKIT=1 $(DOCKER) build \
 		--target terratest-smoke \
-		--build-arg GODADDY_ENDPOINT=$${GODADDY_ENDPOINT:-ote} \
+		--build-arg GODADDY_ENDPOINT="$${GODADDY_ENDPOINT:-ote}" \
 		--secret id=godaddy_api_key,env=GODADDY_API_KEY \
 		--secret id=godaddy_api_secret,env=GODADDY_API_SECRET \
 		--secret id=godaddy_test_domain,env=GODADDY_TEST_DOMAIN \
