@@ -1,0 +1,36 @@
+.DS_Store
+
+# Go build and test artifacts
+/bin/
+/dist/
+/coverage/
+coverage.out
+coverage-*.out
+*.test
+*.prof
+
+# Terraform working directories and state
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Local provider development artifacts
+terraform-provider-godaddy
+terraform.rc
+.terraformrc
+
+# Secrets and local env files
+.env
+.env.*
+*.tfvars
+*.tfvars.json
+
+# IDE/editor files
+.idea/
+.vscode/
