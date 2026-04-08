@@ -10,6 +10,7 @@ import (
 	"github.com/alikor/terraform-provider-godaddy/internal/normalize"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 var dnsRecordAttrTypes = map[string]attr.Type{
@@ -36,6 +37,33 @@ var agreementAttrTypes = map[string]attr.Type{
 	"title":         types.StringType,
 	"content":       types.StringType,
 	"url":           types.StringType,
+}
+
+var consentAttrTypes = map[string]attr.Type{
+	"agreed_by":      types.StringType,
+	"agreed_at":      types.StringType,
+	"agreement_keys": types.ListType{ElemType: types.StringType},
+}
+
+var mailingAddressAttrTypes = map[string]attr.Type{
+	"address1":    types.StringType,
+	"address2":    types.StringType,
+	"city":        types.StringType,
+	"state":       types.StringType,
+	"postal_code": types.StringType,
+	"country":     types.StringType,
+}
+
+var contactAttrTypes = map[string]attr.Type{
+	"name_first":      types.StringType,
+	"name_middle":     types.StringType,
+	"name_last":       types.StringType,
+	"organization":    types.StringType,
+	"job_title":       types.StringType,
+	"email":           types.StringType,
+	"phone":           types.StringType,
+	"fax":             types.StringType,
+	"address_mailing": types.ObjectType{AttrTypes: mailingAddressAttrTypes},
 }
 
 func parseDomain(domain string) (string, error) {
@@ -184,6 +212,10 @@ func stringOrNull(value string) types.String {
 	return types.StringValue(value)
 }
 
+func stringValueOrNull(value string) attr.Value {
+	return stringOrNull(value)
+}
+
 func optionalBool(value bool, set bool) types.Bool {
 	if !set {
 		return types.BoolNull()
@@ -229,4 +261,118 @@ func buildDomainQuery(data domainsDataSourceModel, ctx context.Context) (url.Val
 	}
 
 	return query, nil
+}
+
+func objectNull(attrTypes map[string]attr.Type) types.Object {
+	return types.ObjectNull(attrTypes)
+}
+
+func consentObjectFromAPI(value *client.Consent) types.Object {
+	if value == nil {
+		return objectNull(consentAttrTypes)
+	}
+
+	return types.ObjectValueMust(consentAttrTypes, map[string]attr.Value{
+		"agreed_by":      stringOrNull(value.AgreedBy),
+		"agreed_at":      stringOrNull(value.AgreedAt),
+		"agreement_keys": toStringList(value.AgreementKeys),
+	})
+}
+
+func consentFromObject(ctx context.Context, obj types.Object) (*client.Consent, error) {
+	if obj.IsNull() || obj.IsUnknown() {
+		return nil, nil
+	}
+
+	var model consentModel
+	diags := obj.As(ctx, &model, basetypes.ObjectAsOptions{})
+	if diags.HasError() {
+		return nil, fmt.Errorf("unable to decode consent object: %s", diags.Errors()[0].Summary())
+	}
+
+	keys, err := stringsFromList(ctx, model.AgreementKeys)
+	if err != nil {
+		return nil, err
+	}
+
+	return &client.Consent{
+		AgreedBy:      model.AgreedBy.ValueString(),
+		AgreedAt:      model.AgreedAt.ValueString(),
+		AgreementKeys: keys,
+	}, nil
+}
+
+func mailingAddressObjectFromAPI(value client.MailingAddress) types.Object {
+	return types.ObjectValueMust(mailingAddressAttrTypes, map[string]attr.Value{
+		"address1":    stringOrNull(value.Address1),
+		"address2":    stringOrNull(value.Address2),
+		"city":        stringOrNull(value.City),
+		"state":       stringOrNull(value.State),
+		"postal_code": stringOrNull(value.PostalCode),
+		"country":     stringOrNull(value.Country),
+	})
+}
+
+func mailingAddressFromObject(ctx context.Context, obj types.Object) (client.MailingAddress, error) {
+	var model mailingAddressModel
+	if obj.IsNull() || obj.IsUnknown() {
+		return client.MailingAddress{}, fmt.Errorf("address_mailing is required")
+	}
+
+	diags := obj.As(ctx, &model, basetypes.ObjectAsOptions{})
+	if diags.HasError() {
+		return client.MailingAddress{}, fmt.Errorf("unable to decode address_mailing: %s", diags.Errors()[0].Summary())
+	}
+
+	return client.MailingAddress{
+		Address1:   model.Address1.ValueString(),
+		Address2:   model.Address2.ValueString(),
+		City:       model.City.ValueString(),
+		State:      model.State.ValueString(),
+		PostalCode: model.PostalCode.ValueString(),
+		Country:    model.Country.ValueString(),
+	}, nil
+}
+
+func contactObjectFromAPI(value client.Contact) types.Object {
+	return types.ObjectValueMust(contactAttrTypes, map[string]attr.Value{
+		"name_first":      stringOrNull(value.NameFirst),
+		"name_middle":     stringOrNull(value.NameMiddle),
+		"name_last":       stringOrNull(value.NameLast),
+		"organization":    stringOrNull(value.Organization),
+		"job_title":       stringOrNull(value.JobTitle),
+		"email":           stringOrNull(value.Email),
+		"phone":           stringOrNull(value.Phone),
+		"fax":             stringOrNull(value.Fax),
+		"address_mailing": mailingAddressObjectFromAPI(value.AddressMailing),
+	})
+}
+
+func contactFromObject(ctx context.Context, obj types.Object) (client.Contact, error) {
+	var model contactModel
+	if obj.IsNull() || obj.IsUnknown() {
+		return client.Contact{}, fmt.Errorf("contact is required")
+	}
+
+	diags := obj.As(ctx, &model, basetypes.ObjectAsOptions{})
+	if diags.HasError() {
+		return client.Contact{}, fmt.Errorf("unable to decode contact object: %s", diags.Errors()[0].Summary())
+	}
+
+	address, err := mailingAddressFromObject(ctx, model.AddressMailing)
+	if err != nil {
+		return client.Contact{}, err
+	}
+
+	return normalize.Contact(client.Contact{
+		NameFirst:      model.NameFirst.ValueString(),
+		NameMiddle:     model.NameMiddle.ValueString(),
+		NameLast:       model.NameLast.ValueString(),
+		Organization:   model.Organization.ValueString(),
+		JobTitle:       model.JobTitle.ValueString(),
+		Email:          model.Email.ValueString(),
+		Phone:          model.Phone.ValueString(),
+		Fax:            model.Fax.ValueString(),
+		AddressMailing: address,
+	}), nil
 }

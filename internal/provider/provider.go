@@ -87,6 +87,9 @@ func (p *godaddyProvider) DataSources(_ context.Context) []func() datasource.Dat
 func (p *godaddyProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewDNSRecordSetResource,
+		NewDomainSettingsResource,
+		NewDomainNameserversResource,
+		NewDomainContactsResource,
 	}
 }
 

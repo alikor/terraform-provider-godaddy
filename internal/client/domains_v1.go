@@ -7,11 +7,12 @@ import (
 	"net/url"
 )
 
-type domainUpdateRequest struct {
+type DomainUpdateRequest struct {
 	Locked                       *bool    `json:"locked,omitempty"`
 	RenewAuto                    *bool    `json:"renewAuto,omitempty"`
 	ExposeRegistrantOrganization *bool    `json:"exposeRegistrantOrganization,omitempty"`
 	ExposeWhois                  *bool    `json:"exposeWhois,omitempty"`
+	NameServers                  []string `json:"nameServers,omitempty"`
 	Consent                      *Consent `json:"consent,omitempty"`
 }
 
@@ -46,9 +47,17 @@ func (c *Client) GetAgreements(ctx context.Context, query url.Values) ([]Agreeme
 	return out, err
 }
 
-func (c *Client) PatchDomain(ctx context.Context, domain string, body domainUpdateRequest) error {
+func (c *Client) PatchDomain(ctx context.Context, domain string, body DomainUpdateRequest) error {
 	_, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/domains/%s", domain), body, nil, requestOptions{
 		PathTemplate: "/v1/domains/{domain}",
+		ShopperID:    c.config.ShopperID,
+	})
+	return err
+}
+
+func (c *Client) PatchDomainContacts(ctx context.Context, domain string, body DomainContacts) error {
+	_, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/domains/%s/contacts", domain), body, nil, requestOptions{
+		PathTemplate: "/v1/domains/{domain}/contacts",
 		ShopperID:    c.config.ShopperID,
 	})
 	return err
