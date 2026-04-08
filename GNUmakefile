@@ -63,18 +63,6 @@ docker-artifact:
 	DOCKER_BUILDKIT=1 $(DOCKER) build --target artifact --build-arg VERSION=$(VERSION) --output type=local,dest=$(DIST_DIR) .
 
 docker-smoke:
-	@set -a; \
-	if [ -f .env ]; then . ./.env; fi; \
-	set +a; \
-	: "$${GODADDY_API_KEY:?GODADDY_API_KEY must be set}"; \
-	: "$${GODADDY_API_SECRET:?GODADDY_API_SECRET must be set}"; \
-	: "$${GODADDY_TEST_DOMAIN:?GODADDY_TEST_DOMAIN must be set}"; \
-	DOCKER_BUILDKIT=1 $(DOCKER) build \
-		--target terratest-smoke \
-		--build-arg GODADDY_ENDPOINT="$${GODADDY_ENDPOINT:-ote}" \
-		--secret id=godaddy_api_key,env=GODADDY_API_KEY \
-		--secret id=godaddy_api_secret,env=GODADDY_API_SECRET \
-		--secret id=godaddy_test_domain,env=GODADDY_TEST_DOMAIN \
-		.
+	DOCKER_BUILDKIT=1 $(DOCKER) build --target terratest-smoke .
 
 docker-ci: docker-fmt docker-test docker-docs-check docker-build

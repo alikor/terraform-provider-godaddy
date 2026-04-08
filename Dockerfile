@@ -58,21 +58,6 @@ COPY --from=build /out/terraform-provider-godaddy /terraform-provider-godaddy
 
 FROM source AS terratest-smoke
 
-ARG GODADDY_ENDPOINT=ote
-
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=secret,id=godaddy_api_key \
-    --mount=type=secret,id=godaddy_api_secret \
-    --mount=type=secret,id=godaddy_test_domain \
-    GODADDY_API_KEY="$(cat /run/secrets/godaddy_api_key)" && \
-    GODADDY_API_SECRET="$(cat /run/secrets/godaddy_api_secret)" && \
-    GODADDY_TEST_DOMAIN="$(cat /run/secrets/godaddy_test_domain)" && \
-    export TF_ACC=1 && \
-    export GODADDY_ENDPOINT="${GODADDY_ENDPOINT}" && \
-    export GODADDY_API_KEY GODADDY_API_SECRET GODADDY_TEST_DOMAIN && \
-    export TF_VAR_godaddy_api_key="${GODADDY_API_KEY}" && \
-    export TF_VAR_godaddy_api_secret="${GODADDY_API_SECRET}" && \
-    export TF_VAR_godaddy_endpoint="${GODADDY_ENDPOINT}" && \
-    export TF_VAR_domain="${GODADDY_TEST_DOMAIN}" && \
-    go test ./test/terratest/... -run 'Test(DomainReadPlan|DNSRecordSetPlan)' -v -count=1
+    go test ./test/terratest/... -run 'TestDNSRecordSetLifecycleWithMockAPI' -v -count=1
