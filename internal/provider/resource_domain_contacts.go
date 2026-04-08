@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"reflect"
+	"time"
 
 	"github.com/alikor/terraform-provider-godaddy/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -48,7 +49,7 @@ func (r *domainContactsResource) Schema(_ context.Context, _ resource.SchemaRequ
 			},
 			"identity_document_id": resourceschema.StringAttribute{
 				Optional:            true,
-				MarkdownDescription: "Reserved for later v2 support. The current implementation uses the v1 contacts path.",
+				MarkdownDescription: "Optional identity document identifier. When set, the provider uses the v2 contacts update path and waits for the asynchronous domain action to complete.",
 			},
 		},
 		Blocks: map[string]resourceschema.Block{
@@ -162,7 +163,7 @@ func (r *domainContactsResource) apply(ctx context.Context, getter interface {
 	}
 
 	if !reflect.DeepEqual(currentContacts, contacts) {
-		if err := r.client.PatchDomainContacts(ctx, domain, contacts); err != nil {
+		if err := r.updateContacts(ctx, data, domain, contacts); err != nil {
 			diags.AddError("Unable to update domain contacts", err.Error())
 			return
 		}
@@ -176,6 +177,30 @@ func (r *domainContactsResource) apply(ctx context.Context, getter interface {
 
 	r.setStateFromDomain(&data, domain, current)
 	diags.Append(state.Set(ctx, &data)...)
+}
+
+func (r *domainContactsResource) updateContacts(ctx context.Context, data contactsResourceModel, domain string, contacts client.DomainContacts) error {
+	if !useV2ContactsUpdate(data.IdentityDocumentID) {
+		return r.client.PatchDomainContacts(ctx, domain, contacts)
+	}
+
+	customerID, err := r.client.ResolveCustomerID(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := r.client.PatchDomainContactsV2(ctx, customerID, domain, client.DomainContactsV2Update{
+		Registrant:         contacts.Registrant,
+		Admin:              contacts.Admin,
+		Tech:               contacts.Tech,
+		Billing:            contacts.Billing,
+		IdentityDocumentID: data.IdentityDocumentID.ValueString(),
+	}); err != nil {
+		return err
+	}
+
+	_, err = r.client.PollDomainAction(ctx, customerID, domain, "DOMAIN_UPDATE_CONTACTS", "", 10*time.Minute)
+	return err
 }
 
 func (r *domainContactsResource) readCurrentDomain(ctx context.Context, rawDomain string, diags *diag.Diagnostics) (string, *client.Domain, bool) {
@@ -263,4 +288,8 @@ func normalizeContact(value client.Contact) client.Contact {
 		Fax:            value.Fax,
 		AddressMailing: value.AddressMailing,
 	}
+}
+
+func useV2ContactsUpdate(identityDocumentID types.String) bool {
+	return !identityDocumentID.IsNull() && !identityDocumentID.IsUnknown() && identityDocumentID.ValueString() != ""
 }

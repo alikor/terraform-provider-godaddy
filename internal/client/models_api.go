@@ -70,6 +70,14 @@ type DomainContacts struct {
 	Billing    Contact `json:"contactBilling,omitempty"`
 }
 
+type DomainContactsV2Update struct {
+	Registrant         Contact `json:"contactRegistrant,omitempty"`
+	Admin              Contact `json:"contactAdmin,omitempty"`
+	Tech               Contact `json:"contactTech,omitempty"`
+	Billing            Contact `json:"contactBilling,omitempty"`
+	IdentityDocumentID string  `json:"identityDocumentId,omitempty"`
+}
+
 type Contact struct {
 	NameFirst      string         `json:"nameFirst,omitempty"`
 	NameMiddle     string         `json:"nameMiddle,omitempty"`

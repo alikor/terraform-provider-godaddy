@@ -79,6 +79,14 @@ func (c *Client) AddDNSSECRecords(ctx context.Context, customerID, domain string
 	return err
 }
 
+func (c *Client) PatchDomainContactsV2(ctx context.Context, customerID, domain string, body DomainContactsV2Update) error {
+	_, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v2/customers/%s/domains/%s/contacts", customerID, domain), body, nil, requestOptions{
+		PathTemplate: "/v2/customers/{customerId}/domains/{domain}/contacts",
+		RequestID:    true,
+	})
+	return err
+}
+
 func (c *Client) DeleteDNSSECRecords(ctx context.Context, customerID, domain string, records []DNSSECRecord) error {
 	_, err := c.do(ctx, http.MethodDelete, fmt.Sprintf("/v2/customers/%s/domains/%s/dnssecRecords", customerID, domain), records, nil, requestOptions{
 		PathTemplate: "/v2/customers/{customerId}/domains/{domain}/dnssecRecords",
