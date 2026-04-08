@@ -21,6 +21,7 @@ import (
 var _ resource.Resource = (*domainSettingsResource)(nil)
 var _ resource.ResourceWithConfigure = (*domainSettingsResource)(nil)
 var _ resource.ResourceWithImportState = (*domainSettingsResource)(nil)
+var _ resource.ResourceWithModifyPlan = (*domainSettingsResource)(nil)
 
 type domainSettingsResource struct {
 	client *client.Client
@@ -142,6 +143,32 @@ func (r *domainSettingsResource) Configure(_ context.Context, req resource.Confi
 		return
 	}
 	r.client = client
+}
+
+func (r *domainSettingsResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var planned settingsResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &planned)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	prior := settingsConsentState{}
+	if !req.State.Raw.IsNull() {
+		var state settingsResourceModel
+		resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		prior.ExposeRegistrantOrganization = boolValueOrFalse(state.ExposeRegistrantOrganization)
+		prior.ExposeWhois = boolValueOrFalse(state.ExposeWhois)
+	}
+
+	validateSettingsConsent(ctx, prior, planned, &resp.Diagnostics)
 }
 
 func (r *domainSettingsResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -292,22 +319,14 @@ func buildSettingsPatch(ctx context.Context, current *client.Domain, data settin
 	patch.ExposeRegistrantOrganization = setBool(patch.ExposeRegistrantOrganization, current.ExposeRegistrantOrganization, data.ExposeRegistrantOrganization)
 	patch.ExposeWhois = setBool(patch.ExposeWhois, current.ExposeWhois, data.ExposeWhois)
 
-	if (patch.ExposeRegistrantOrganization != nil && *patch.ExposeRegistrantOrganization) || (patch.ExposeWhois != nil && *patch.ExposeWhois) {
-		consent, err := consentFromObject(ctx, data.Consent)
-		if err != nil || consent == nil {
-			diags.AddError("Consent required", "Enabling WHOIS exposure fields requires the `consent` block.")
-			return client.DomainUpdateRequest{}, false
-		}
-
-		if patch.ExposeRegistrantOrganization != nil && *patch.ExposeRegistrantOrganization && !slices.Contains(consent.AgreementKeys, "EXPOSE_REGISTRANT_ORGANIZATION") {
-			diags.AddError("Missing consent key", "`EXPOSE_REGISTRANT_ORGANIZATION` must be present in `consent.agreement_keys` when enabling `expose_registrant_organization`.")
-			return client.DomainUpdateRequest{}, false
-		}
-		if patch.ExposeWhois != nil && *patch.ExposeWhois && !slices.Contains(consent.AgreementKeys, "EXPOSE_WHOIS") {
-			diags.AddError("Missing consent key", "`EXPOSE_WHOIS` must be present in `consent.agreement_keys` when enabling `expose_whois`.")
-			return client.DomainUpdateRequest{}, false
-		}
-
+	consent, ok := validateSettingsConsent(ctx, settingsConsentState{
+		ExposeRegistrantOrganization: current.ExposeRegistrantOrganization,
+		ExposeWhois:                  current.ExposeWhois,
+	}, data, diags)
+	if !ok {
+		return client.DomainUpdateRequest{}, false
+	}
+	if consent != nil {
 		patch.Consent = consent
 	}
 
@@ -320,4 +339,51 @@ func hasSettingsPatchChanges(patch client.DomainUpdateRequest) bool {
 		patch.ExposeRegistrantOrganization != nil ||
 		patch.ExposeWhois != nil ||
 		len(patch.NameServers) > 0
+}
+
+type settingsConsentState struct {
+	ExposeRegistrantOrganization bool
+	ExposeWhois                  bool
+}
+
+func validateSettingsConsent(ctx context.Context, prior settingsConsentState, data settingsResourceModel, diags *diag.Diagnostics) (*client.Consent, bool) {
+	requireExposeRegistrantOrganization := boolTransitionsToTrue(prior.ExposeRegistrantOrganization, data.ExposeRegistrantOrganization)
+	requireExposeWhois := boolTransitionsToTrue(prior.ExposeWhois, data.ExposeWhois)
+
+	if !requireExposeRegistrantOrganization && !requireExposeWhois {
+		return nil, true
+	}
+
+	consent, err := consentFromObject(ctx, data.Consent)
+	if err != nil || consent == nil {
+		diags.AddError("Consent required", "Enabling WHOIS exposure fields requires the `consent` block.")
+		return nil, false
+	}
+
+	if requireExposeRegistrantOrganization && !slices.Contains(consent.AgreementKeys, "EXPOSE_REGISTRANT_ORGANIZATION") {
+		diags.AddError("Missing consent key", "`EXPOSE_REGISTRANT_ORGANIZATION` must be present in `consent.agreement_keys` when enabling `expose_registrant_organization`.")
+		return nil, false
+	}
+	if requireExposeWhois && !slices.Contains(consent.AgreementKeys, "EXPOSE_WHOIS") {
+		diags.AddError("Missing consent key", "`EXPOSE_WHOIS` must be present in `consent.agreement_keys` when enabling `expose_whois`.")
+		return nil, false
+	}
+
+	return consent, true
+}
+
+func boolTransitionsToTrue(prior bool, planned types.Bool) bool {
+	if planned.IsNull() || planned.IsUnknown() {
+		return false
+	}
+
+	return planned.ValueBool() && !prior
+}
+
+func boolValueOrFalse(value types.Bool) bool {
+	if value.IsNull() || value.IsUnknown() {
+		return false
+	}
+
+	return value.ValueBool()
 }

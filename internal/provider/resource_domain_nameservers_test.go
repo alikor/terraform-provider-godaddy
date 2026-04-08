@@ -10,7 +10,12 @@ import (
 	"time"
 
 	"github.com/alikor/terraform-provider-godaddy/internal/client"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	resourceschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
 
 func TestDomainNameserversUpdateUsesV2WhenCustomerIDAvailable(t *testing.T) {
@@ -155,4 +160,73 @@ func TestDescribeNameserverUpdateErrorTwoFactor(t *testing.T) {
 	if detail == "" {
 		t.Fatal("expected non-empty detail")
 	}
+}
+
+func TestDomainNameserversModifyPlanRequiresMinimumTwoNameservers(t *testing.T) {
+	t.Parallel()
+
+	resp := runDomainNameserversModifyPlan(t, nameserversResourceModel{
+		Domain:      types.StringValue("example.com"),
+		NameServers: types.ListValueMust(types.StringType, []attr.Value{types.StringValue("ns1.example.net")}),
+	})
+
+	if !resp.Diagnostics.HasError() {
+		t.Fatal("expected diagnostics error")
+	}
+	assertDiagContains(t, resp.Diagnostics, "At least two nameservers are required")
+}
+
+func TestDomainNameserversModifyPlanAllowsNormalizedPair(t *testing.T) {
+	t.Parallel()
+
+	resp := runDomainNameserversModifyPlan(t, nameserversResourceModel{
+		Domain: types.StringValue("example.com"),
+		NameServers: types.ListValueMust(types.StringType, []attr.Value{
+			types.StringValue("NS2.EXAMPLE.NET."),
+			types.StringValue("ns1.example.net"),
+			types.StringValue("ns1.example.net"),
+		}),
+	})
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected no diagnostics, got %#v", resp.Diagnostics)
+	}
+}
+
+func runDomainNameserversModifyPlan(t *testing.T, planModel nameserversResourceModel) resource.ModifyPlanResponse {
+	t.Helper()
+
+	schema := testDomainNameserversSchema(t)
+	ctx := context.Background()
+
+	if planModel.NameServers.ElementType(context.Background()) == nil {
+		planModel.NameServers = types.ListNull(types.StringType)
+	}
+
+	plan := tfsdk.Plan{Schema: schema}
+	if diags := plan.Set(ctx, planModel); diags.HasError() {
+		t.Fatalf("unable to encode plan: %#v", diags)
+	}
+
+	req := resource.ModifyPlanRequest{
+		Plan: plan,
+		State: tfsdk.State{
+			Schema: schema,
+			Raw:    tftypes.NewValue(schema.Type().TerraformType(ctx), nil),
+		},
+	}
+	resp := resource.ModifyPlanResponse{Plan: plan}
+
+	r := &domainNameserversResource{}
+	r.ModifyPlan(ctx, req, &resp)
+	return resp
+}
+
+func testDomainNameserversSchema(t *testing.T) resourceschema.Schema {
+	t.Helper()
+
+	var resp resource.SchemaResponse
+	r := &domainNameserversResource{}
+	r.Schema(context.Background(), resource.SchemaRequest{}, &resp)
+	return resp.Schema
 }

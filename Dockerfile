@@ -31,6 +31,18 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go test ./...
 
+FROM source AS docs-check
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    rm -rf /tmp/docs-check && \
+    mkdir -p /tmp/docs-check && \
+    cp -R docs/index.md docs/data-sources docs/resources /tmp/docs-check/ && \
+    go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name godaddy && \
+    diff -ru /tmp/docs-check/index.md docs/index.md && \
+    diff -ru /tmp/docs-check/data-sources docs/data-sources && \
+    diff -ru /tmp/docs-check/resources docs/resources
+
 FROM source AS build
 
 ARG VERSION=dev
@@ -63,4 +75,4 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     export TF_VAR_godaddy_api_secret="${GODADDY_API_SECRET}" && \
     export TF_VAR_godaddy_endpoint="${GODADDY_ENDPOINT}" && \
     export TF_VAR_domain="${GODADDY_TEST_DOMAIN}" && \
-    go test ./test/terratest/... -run TestDNSRecordSetPlan -v -count=1
+    go test ./test/terratest/... -run 'Test(DomainReadPlan|DNSRecordSetPlan)' -v -count=1

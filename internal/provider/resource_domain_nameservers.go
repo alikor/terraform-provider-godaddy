@@ -23,6 +23,7 @@ import (
 var _ resource.Resource = (*domainNameserversResource)(nil)
 var _ resource.ResourceWithConfigure = (*domainNameserversResource)(nil)
 var _ resource.ResourceWithImportState = (*domainNameserversResource)(nil)
+var _ resource.ResourceWithModifyPlan = (*domainNameserversResource)(nil)
 
 type domainNameserversResource struct {
 	client *client.Client
@@ -79,6 +80,20 @@ func (r *domainNameserversResource) Configure(_ context.Context, req resource.Co
 		return
 	}
 	r.client = client
+}
+
+func (r *domainNameserversResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var data nameserversResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	validateNameserverPlan(ctx, data.NameServers, &resp.Diagnostics)
 }
 
 func (r *domainNameserversResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -138,8 +153,7 @@ func (r *domainNameserversResource) apply(ctx context.Context, getter interface 
 		return
 	}
 	desired = normalize.NormalizeNameservers(desired)
-	if len(desired) < 2 {
-		diags.AddError("Invalid name_servers", "At least two nameservers are required.")
+	if !validateNormalizedNameservers(desired, diags) {
 		return
 	}
 
@@ -244,4 +258,23 @@ func describeNameserverUpdateError(err error) (string, string) {
 	}
 
 	return "Unable to update nameservers", err.Error()
+}
+
+func validateNameserverPlan(ctx context.Context, planned types.List, diags *diag.Diagnostics) bool {
+	desired, err := stringsFromList(ctx, planned)
+	if err != nil {
+		diags.AddError("Invalid name_servers", err.Error())
+		return false
+	}
+
+	return validateNormalizedNameservers(normalize.NormalizeNameservers(desired), diags)
+}
+
+func validateNormalizedNameservers(desired []string, diags *diag.Diagnostics) bool {
+	if len(desired) < 2 {
+		diags.AddError("Invalid name_servers", "At least two nameservers are required.")
+		return false
+	}
+
+	return true
 }
