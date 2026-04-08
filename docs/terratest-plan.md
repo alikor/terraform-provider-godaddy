@@ -2,6 +2,19 @@
 
 This plan defines how Terratest should complement unit tests and Terraform Plugin Framework acceptance tests.
 
+## Current status
+
+Implemented today:
+
+- smoke Terratests for provider prerequisites, domain read planning, and DNS RRset planning
+- mock-backed DNS RRset lifecycle coverage for apply, import, drift-free second plan, and destroy
+
+Still planned:
+
+- broader lifecycle coverage for non-DNS resources
+- more import and state-only destroy checks
+- live account-backed Terratests once a GoDaddy account with an API-visible domain is available
+
 ## Purpose
 
 - Use unit tests for pure Go logic.

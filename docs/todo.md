@@ -1,6 +1,6 @@
 # GoDaddy Terraform Provider Remaining Work
 
-This file tracks the real blockers between the current `0.2.x` state and a credible `1.0.0` release. Earlier stage planning has been superseded by the implemented provider surface now present in the repository.
+This file tracks the real blockers between the current `0.3.x` state and a credible `1.0.0` release. Earlier stage planning has been superseded by the implemented provider surface now present in the repository.
 
 ## Current baseline
 

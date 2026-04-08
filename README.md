@@ -32,6 +32,17 @@ This repository currently includes:
 
 The main remaining work is broader acceptance coverage, more end-to-end Terratests, and docs/examples hardening across the full surface area.
 
+## Documentation
+
+- Provider docs: [docs/index.md](docs/index.md)
+- Resource docs: [docs/resources](docs/resources)
+- Data source docs: [docs/data-sources](docs/data-sources)
+- Examples: [examples](examples)
+- Terratest plan: [docs/terratest-plan.md](docs/terratest-plan.md)
+- Remaining blockers: [docs/todo.md](docs/todo.md)
+- Specification: [docs/specs/godaddy-terraform-provider-spec.md](docs/specs/godaddy-terraform-provider-spec.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+
 ## Development
 
 ```bash
@@ -46,4 +57,8 @@ Acceptance tests require real GoDaddy credentials and `TF_ACC=1`.
 
 ## Examples
 
-Example provider, data source, and resource configurations live under [examples](/Users/madu/code/github.com/alikor/terraform-provider-godaddy/examples).
+Example provider, data source, and resource configurations live under [examples](examples):
+
+- Provider setup: [examples/provider/main.tf](examples/provider/main.tf)
+- Data sources: [examples/data-sources](examples/data-sources)
+- Resources: [examples/resources](examples/resources)
