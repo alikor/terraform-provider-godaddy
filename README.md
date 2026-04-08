@@ -28,7 +28,7 @@ This repository currently includes:
   - `godaddy_domain_contacts`
   - `godaddy_domain_forwarding`
   - `godaddy_domain_dnssec_records`
-- unit tests, provider acceptance tests, and Terratest smoke coverage
+- unit tests, provider acceptance tests, Terratest smoke coverage, and mock-backed lifecycle coverage for DNS RRsets
 
 The main remaining work is broader acceptance coverage, more end-to-end Terratests, and docs/examples hardening across the full surface area.
 
