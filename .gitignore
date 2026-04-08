@@ -28,6 +28,7 @@ terraform.rc
 # Secrets and local env files
 .env
 .env.*
+!.env.example
 *.tfvars
 *.tfvars.json
 
