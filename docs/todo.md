@@ -72,6 +72,11 @@ Current status:
   - provider prereqs
   - domain read planning
   - DNS record set planning
+- local mock Terratest coverage now exists for DNS RRset:
+  - apply
+  - import
+  - drift-free second plan
+  - destroy
 
 ### 3. Resource behavior hardening
 

@@ -1,5 +1,9 @@
 # terraform-provider-godaddy
 
+[![CI](https://github.com/alikor/terraform-provider-godaddy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/alikor/terraform-provider-godaddy/actions/workflows/ci.yml)
+[![Release](https://github.com/alikor/terraform-provider-godaddy/actions/workflows/release.yml/badge.svg)](https://github.com/alikor/terraform-provider-godaddy/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/alikor/terraform-provider-godaddy)](https://github.com/alikor/terraform-provider-godaddy/releases)
+
 Terraform provider for managing GoDaddy domains, DNS, and adjacent account-backed domain operations.
 
 ## Current implementation status

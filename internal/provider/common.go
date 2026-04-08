@@ -197,10 +197,10 @@ func recordsToList(records []client.DNSRecord) types.List {
 			dnsRecordAttrTypes,
 			map[string]attr.Value{
 				"data":     types.StringValue(record.Data),
-				"ttl":      types.Int64Value(record.TTL),
-				"priority": types.Int64Value(record.Priority),
-				"weight":   types.Int64Value(record.Weight),
-				"port":     types.Int64Value(record.Port),
+				"ttl":      int64OrNull(record.TTL),
+				"priority": int64OrNull(record.Priority),
+				"weight":   int64OrNull(record.Weight),
+				"port":     int64OrNull(record.Port),
 				"protocol": stringOrNull(record.Protocol),
 				"service":  stringOrNull(record.Service),
 			},
@@ -263,6 +263,13 @@ func stringOrNull(value string) types.String {
 
 func stringValueOrNull(value string) attr.Value {
 	return stringOrNull(value)
+}
+
+func int64OrNull(value int64) attr.Value {
+	if value == 0 {
+		return types.Int64Null()
+	}
+	return types.Int64Value(value)
 }
 
 func optionalBool(value bool, set bool) types.Bool {
