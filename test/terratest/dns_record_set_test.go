@@ -27,7 +27,7 @@ func TestDNSRecordSetPlan(t *testing.T) {
 		"TF_VAR_domain="+os.Getenv("GODADDY_TEST_DOMAIN"),
 	)
 
-	runTerraform(t, fixtureDir, env, "init", "-input=false")
+	runTerraform(t, fixtureDir, env, "version")
 	runTerraform(t, fixtureDir, env, "plan", "-input=false", "-lock=false")
 }
 
