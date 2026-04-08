@@ -9,23 +9,37 @@ This repository currently includes:
 - provider bootstrap with Terraform Plugin Framework
 - GoDaddy client runtime with auth, retries, rate limiting, and typed errors
 - normalization helpers for domains, nameservers, and DNS RRsets
-- Stage 1 provider surfaces:
+- provider data sources:
   - `godaddy_domain`
   - `godaddy_domains`
-  - `godaddy_dns_record_set` data source
+  - `godaddy_dns_record_set`
   - `godaddy_domain_agreements`
+  - `godaddy_domain_actions`
+  - `godaddy_domain_forwarding`
   - `godaddy_shopper`
-  - `godaddy_dns_record_set` resource
-- unit tests and Terratest scaffolding
+- provider resources:
+  - `godaddy_dns_record_set`
+  - `godaddy_domain_settings`
+  - `godaddy_domain_nameservers`
+  - `godaddy_domain_contacts`
+  - `godaddy_domain_forwarding`
+  - `godaddy_domain_dnssec_records`
+- unit tests, provider acceptance tests, and Terratest smoke coverage
 
-Later stage resources from the spec remain to be implemented.
+The main remaining work is broader acceptance coverage, more end-to-end Terratests, and docs/examples hardening across the full surface area.
 
 ## Development
 
 ```bash
 make fmt
 make test
+make testacc
+make testterratest
 make build
 ```
 
 Acceptance tests require real GoDaddy credentials and `TF_ACC=1`.
+
+## Examples
+
+Example provider, data source, and resource configurations live under [examples](/Users/madu/code/github.com/alikor/terraform-provider-godaddy/examples).

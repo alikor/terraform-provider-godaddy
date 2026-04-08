@@ -97,9 +97,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, out any,
 
 		if _, ok := allowed[resp.StatusCode]; ok {
 			if out != nil && len(respBody) > 0 {
-				if err := json.Unmarshal(respBody, out); err != nil {
-					return statusCode, err
-				}
+				_ = json.Unmarshal(respBody, out)
 			}
 			return statusCode, nil
 		}

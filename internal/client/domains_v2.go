@@ -25,6 +25,16 @@ func (c *Client) GetDomainV2(ctx context.Context, customerID, domain string, inc
 	return &out, statusCode == http.StatusNonAuthoritativeInfo, nil
 }
 
+func (c *Client) UpdateDomainNameServersV2(ctx context.Context, customerID, domain string, nameServers []string) error {
+	_, err := c.do(ctx, http.MethodPut, fmt.Sprintf("/v2/customers/%s/domains/%s/nameServers", customerID, domain), DomainNameServerUpdateV2{
+		NameServers: nameServers,
+	}, nil, requestOptions{
+		PathTemplate: "/v2/customers/{customerId}/domains/{domain}/nameServers",
+		RequestID:    true,
+	})
+	return err
+}
+
 func (c *Client) GetDomainForwarding(ctx context.Context, customerID, fqdn string, includeSubs bool) (*DomainForwarding, error) {
 	query := url.Values{}
 	if includeSubs {

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"strings"
+	"time"
 
 	"github.com/alikor/terraform-provider-godaddy/internal/client"
 	"github.com/alikor/terraform-provider-godaddy/internal/normalize"
@@ -60,7 +62,7 @@ func (r *domainNameserversResource) Schema(_ context.Context, _ resource.SchemaR
 			},
 			"updated_via_v2": resourceschema.BoolAttribute{
 				Computed:            true,
-				MarkdownDescription: "Whether the update used the v2 async path. This implementation currently uses the v1 path.",
+				MarkdownDescription: "Whether the most recent managed update used the v2 async nameserver path.",
 				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 		},
@@ -118,10 +120,12 @@ func (r *domainNameserversResource) apply(ctx context.Context, getter interface 
 	Set(context.Context, any) diag.Diagnostics
 }, diags *diag.Diagnostics) {
 	var data nameserversResourceModel
+
 	diags.Append(getter.Get(ctx, &data)...)
 	if diags.HasError() {
 		return
 	}
+	updatedViaV2 := existingUpdatedViaV2(data)
 
 	domain, current, ok := r.readCurrentDomain(ctx, data.Domain.ValueString(), diags)
 	if !ok {
@@ -141,10 +145,13 @@ func (r *domainNameserversResource) apply(ctx context.Context, getter interface 
 
 	currentNS := normalize.NormalizeNameservers(current.NameServers)
 	if !slices.Equal(currentNS, desired) {
-		if err := r.client.PatchDomain(ctx, domain, client.DomainUpdateRequest{NameServers: desired}); err != nil {
-			diags.AddError("Unable to update nameservers", err.Error())
+		usedV2, err := r.updateNameservers(ctx, domain, desired)
+		if err != nil {
+			summary, detail := describeNameserverUpdateError(err)
+			diags.AddError(summary, detail)
 			return
 		}
+		updatedViaV2 = usedV2
 
 		current, err = r.client.GetDomain(ctx, domain)
 		if err != nil {
@@ -154,7 +161,37 @@ func (r *domainNameserversResource) apply(ctx context.Context, getter interface 
 	}
 
 	r.setStateFromDomain(&data, domain, current)
+	data.UpdatedViaV2 = types.BoolValue(updatedViaV2)
 	diags.Append(state.Set(ctx, &data)...)
+}
+
+func (r *domainNameserversResource) updateNameservers(ctx context.Context, domain string, desired []string) (bool, error) {
+	customerID, useV2, err := r.resolveOptionalCustomerID(ctx)
+	if err != nil {
+		return false, err
+	}
+	if useV2 {
+		if err := r.client.UpdateDomainNameServersV2(ctx, customerID, domain, desired); err != nil {
+			return false, err
+		}
+		_, err := r.client.PollDomainAction(ctx, customerID, domain, "DOMAIN_UPDATE_NAME_SERVERS", "", 10*time.Minute)
+		return true, err
+	}
+
+	return false, r.client.PatchDomain(ctx, domain, client.DomainUpdateRequest{NameServers: desired})
+}
+
+func (r *domainNameserversResource) resolveOptionalCustomerID(ctx context.Context) (string, bool, error) {
+	cfg := r.client.Config()
+	if strings.TrimSpace(cfg.CustomerID) == "" && strings.TrimSpace(cfg.ShopperID) == "" {
+		return "", false, nil
+	}
+
+	customerID, err := r.client.ResolveCustomerID(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	return customerID, true, nil
 }
 
 func (r *domainNameserversResource) readCurrentDomain(ctx context.Context, rawDomain string, diags *diag.Diagnostics) (string, *client.Domain, bool) {
@@ -179,9 +216,32 @@ func (r *domainNameserversResource) readCurrentDomain(ctx context.Context, rawDo
 }
 
 func (r *domainNameserversResource) setStateFromDomain(data *nameserversResourceModel, domain string, current *client.Domain) {
+	updatedViaV2 := existingUpdatedViaV2(*data)
 	data.ID = types.StringValue(domain)
 	data.Domain = types.StringValue(domain)
 	data.NameServers = toStringList(normalize.NormalizeNameservers(current.NameServers))
 	data.Status = stringOrNull(current.Status)
-	data.UpdatedViaV2 = types.BoolValue(false)
+	data.UpdatedViaV2 = types.BoolValue(updatedViaV2)
+}
+
+func existingUpdatedViaV2(data nameserversResourceModel) bool {
+	if !data.UpdatedViaV2.IsNull() && !data.UpdatedViaV2.IsUnknown() {
+		return data.UpdatedViaV2.ValueBool()
+	}
+	return false
+}
+
+func describeNameserverUpdateError(err error) (string, string) {
+	var apiErr *client.APIError
+	if errors.As(err, &apiErr) {
+		lower := strings.ToLower(apiErr.Message)
+		if strings.Contains(lower, "2fa") || strings.Contains(lower, "two-factor") || strings.Contains(lower, "two factor") {
+			return "Nameserver update requires additional verification", "GoDaddy rejected the nameserver update because the domain requires two-factor verification or another interactive protection step that the API cannot complete. Original error: " + err.Error()
+		}
+		if apiErr.StatusCode == http.StatusForbidden || apiErr.StatusCode == http.StatusUnprocessableEntity || apiErr.StatusCode == http.StatusConflict {
+			return "Nameserver update not allowed", "GoDaddy rejected the nameserver update. Protected or high-value domains can require account eligibility checks or interactive verification before nameserver changes are allowed. Original error: " + err.Error()
+		}
+	}
+
+	return "Unable to update nameservers", err.Error()
 }

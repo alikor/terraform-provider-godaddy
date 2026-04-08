@@ -78,6 +78,10 @@ type DomainContactsV2Update struct {
 	IdentityDocumentID string  `json:"identityDocumentId,omitempty"`
 }
 
+type DomainNameServerUpdateV2 struct {
+	NameServers []string `json:"nameServers,omitempty"`
+}
+
 type Contact struct {
 	NameFirst      string         `json:"nameFirst,omitempty"`
 	NameMiddle     string         `json:"nameMiddle,omitempty"`
