@@ -113,6 +113,15 @@ func (r *domainNameserversResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
+	// GoDaddy returns old nameservers while the domain is PENDING_DNS (DNS
+	// propagation is async). Preserve the known nameservers from state so that
+	// a plan immediately after apply does not show spurious drift.
+	if current.Status == "PENDING_DNS" {
+		if existing, err := stringsFromList(ctx, data.NameServers); err == nil && len(existing) >= 2 {
+			current.NameServers = existing
+		}
+	}
+
 	r.setStateFromDomain(&data, domain, current)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -171,6 +180,12 @@ func (r *domainNameserversResource) apply(ctx context.Context, getter interface 
 		if err != nil {
 			diags.AddError("Unable to refresh nameservers", err.Error())
 			return
+		}
+		// GoDaddy returns old nameservers while the domain is PENDING_DNS (DNS
+		// propagation is async). Store the desired nameservers in state instead
+		// so Terraform does not see a spurious inconsistency immediately after apply.
+		if current.Status == "PENDING_DNS" {
+			current.NameServers = desired
 		}
 	}
 
