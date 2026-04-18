@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.3.1 - 2026-04-18
+
+- Fixed `godaddy_domain_nameservers` producing an inconsistent-result-after-apply error when GoDaddy returns `PENDING_DNS` status immediately after a nameserver change. The desired nameservers are now preserved in state during propagation and the Read function no longer overwrites state with the stale API response while the domain is pending.
+
 ## 0.3.0 - 2026-04-08
 
 - Added plan-time validation for `godaddy_domain_settings` consent-gated WHOIS exposure transitions.
