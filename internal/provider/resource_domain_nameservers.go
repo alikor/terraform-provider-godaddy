@@ -181,12 +181,11 @@ func (r *domainNameserversResource) apply(ctx context.Context, getter interface 
 			diags.AddError("Unable to refresh nameservers", err.Error())
 			return
 		}
-		// GoDaddy returns old nameservers while the domain is PENDING_DNS (DNS
-		// propagation is async). Store the desired nameservers in state instead
-		// so Terraform does not see a spurious inconsistency immediately after apply.
-		if current.Status == "PENDING_DNS" {
-			current.NameServers = desired
-		}
+		// GoDaddy's API is eventually consistent: the domain may stay ACTIVE
+		// (not just PENDING_DNS) while still returning the old nameservers.
+		// Since updateNameservers succeeded, always store the desired set so
+		// Terraform does not see a spurious inconsistency immediately after apply.
+		current.NameServers = desired
 	}
 
 	r.setStateFromDomain(&data, domain, current)
