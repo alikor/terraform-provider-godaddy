@@ -85,7 +85,7 @@ type settingsResourceModel struct {
 type nameserversResourceModel struct {
 	ID           types.String `tfsdk:"id"`
 	Domain       types.String `tfsdk:"domain"`
-	NameServers  types.List   `tfsdk:"name_servers"`
+	NameServers  types.Set    `tfsdk:"name_servers"`
 	Status       types.String `tfsdk:"status"`
 	UpdatedViaV2 types.Bool   `tfsdk:"updated_via_v2"`
 }

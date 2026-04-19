@@ -51,7 +51,7 @@ func (r *domainNameserversResource) Schema(_ context.Context, _ resource.SchemaR
 				MarkdownDescription: "Existing GoDaddy domain to manage.",
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
-			"name_servers": resourceschema.ListAttribute{
+			"name_servers": resourceschema.SetAttribute{
 				Required:            true,
 				ElementType:         types.StringType,
 				MarkdownDescription: "Full authoritative nameserver set. Minimum 2 nameservers.",
@@ -117,7 +117,7 @@ func (r *domainNameserversResource) Read(ctx context.Context, req resource.ReadR
 	// propagation is async). Preserve the known nameservers from state so that
 	// a plan immediately after apply does not show spurious drift.
 	if current.Status == "PENDING_DNS" {
-		if existing, err := stringsFromList(ctx, data.NameServers); err == nil && len(existing) >= 2 {
+		if existing, err := stringsFromSet(ctx, data.NameServers); err == nil && len(existing) >= 2 {
 			current.NameServers = existing
 		}
 	}
@@ -156,7 +156,7 @@ func (r *domainNameserversResource) apply(ctx context.Context, getter interface 
 		return
 	}
 
-	desired, err := stringsFromList(ctx, data.NameServers)
+	desired, err := stringsFromSet(ctx, data.NameServers)
 	if err != nil {
 		diags.AddError("Invalid name_servers", err.Error())
 		return
@@ -247,7 +247,7 @@ func (r *domainNameserversResource) setStateFromDomain(data *nameserversResource
 	updatedViaV2 := existingUpdatedViaV2(*data)
 	data.ID = types.StringValue(domain)
 	data.Domain = types.StringValue(domain)
-	data.NameServers = toStringList(normalize.NormalizeNameservers(current.NameServers))
+	data.NameServers = toStringSet(normalize.NormalizeNameservers(current.NameServers))
 	data.Status = stringOrNull(current.Status)
 	data.UpdatedViaV2 = types.BoolValue(updatedViaV2)
 }
@@ -274,8 +274,8 @@ func describeNameserverUpdateError(err error) (string, string) {
 	return "Unable to update nameservers", err.Error()
 }
 
-func validateNameserverPlan(ctx context.Context, planned types.List, diags *diag.Diagnostics) bool {
-	desired, err := stringsFromList(ctx, planned)
+func validateNameserverPlan(ctx context.Context, planned types.Set, diags *diag.Diagnostics) bool {
+	desired, err := stringsFromSet(ctx, planned)
 	if err != nil {
 		diags.AddError("Invalid name_servers", err.Error())
 		return false

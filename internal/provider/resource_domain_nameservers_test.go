@@ -167,7 +167,7 @@ func TestDomainNameserversModifyPlanRequiresMinimumTwoNameservers(t *testing.T) 
 
 	resp := runDomainNameserversModifyPlan(t, nameserversResourceModel{
 		Domain:      types.StringValue("example.com"),
-		NameServers: types.ListValueMust(types.StringType, []attr.Value{types.StringValue("ns1.example.net")}),
+		NameServers: types.SetValueMust(types.StringType, []attr.Value{types.StringValue("ns1.example.net")}),
 	})
 
 	if !resp.Diagnostics.HasError() {
@@ -181,7 +181,7 @@ func TestDomainNameserversModifyPlanAllowsNormalizedPair(t *testing.T) {
 
 	resp := runDomainNameserversModifyPlan(t, nameserversResourceModel{
 		Domain: types.StringValue("example.com"),
-		NameServers: types.ListValueMust(types.StringType, []attr.Value{
+		NameServers: types.SetValueMust(types.StringType, []attr.Value{
 			types.StringValue("NS2.EXAMPLE.NET."),
 			types.StringValue("ns1.example.net"),
 			types.StringValue("ns1.example.net"),
@@ -200,7 +200,7 @@ func runDomainNameserversModifyPlan(t *testing.T, planModel nameserversResourceM
 	ctx := context.Background()
 
 	if planModel.NameServers.ElementType(context.Background()) == nil {
-		planModel.NameServers = types.ListNull(types.StringType)
+		planModel.NameServers = types.SetNull(types.StringType)
 	}
 
 	plan := tfsdk.Plan{Schema: schema}

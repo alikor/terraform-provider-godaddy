@@ -148,6 +148,31 @@ func stringsFromList(ctx context.Context, list types.List) ([]string, error) {
 	return values, nil
 }
 
+func toStringSet(values []string) types.Set {
+	if len(values) == 0 {
+		return types.SetNull(types.StringType)
+	}
+
+	elements := make([]attr.Value, 0, len(values))
+	for _, value := range values {
+		elements = append(elements, types.StringValue(value))
+	}
+	return types.SetValueMust(types.StringType, elements)
+}
+
+func stringsFromSet(ctx context.Context, set types.Set) ([]string, error) {
+	if set.IsNull() || set.IsUnknown() {
+		return nil, nil
+	}
+
+	var values []string
+	diags := set.ElementsAs(ctx, &values, false)
+	if diags.HasError() {
+		return nil, fmt.Errorf("unable to decode set: %s", diags.Errors()[0].Summary())
+	}
+	return values, nil
+}
+
 func recordsFromList(ctx context.Context, list types.List) ([]client.DNSRecord, error) {
 	if list.IsNull() || list.IsUnknown() {
 		return nil, nil
